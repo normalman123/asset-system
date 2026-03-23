@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Organization {
+  id                     String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                   String
+  orgCode                String                     @unique @map("org_code")
+  isActive               Boolean                    @default(true) @map("is_active")
+  createdAt              DateTime                   @default(now()) @map("created_at")
+  updatedAt              DateTime                   @default(now()) @updatedAt @map("updated_at")
+  assets                 Asset[]
+  customFieldDefinitions OrgCustomFieldDefinition[]
+  settings               OrgSettings?
+  serviceLogs            ServiceLog[]
+  users                  User[]
+
+  @@index([orgCode])
+  @@map("organizations")
+}
+
+model OrgSettings {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId          String       @unique @map("org_id") @db.Uuid
+  logoUrl        String?      @map("logo_url")
+  primaryColor   String?      @map("primary_color")
+  secondaryColor String?      @map("secondary_color")
+  homepageTitle  String?      @map("homepage_title")
+  contactEmail   String?      @map("contact_email")
+  contactPhone   String?      @map("contact_phone")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("org_settings")
+}
+
+model User {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId         String       @map("org_id") @db.Uuid
+  name          String
+  email         String
+  phone         String?
+  role          UserRole
+  isActive      Boolean      @default(true) @map("is_active")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at")
+  managedAssets Asset[]      @relation("AssetManager")
+  workerLogs    ServiceLog[] @relation("ServiceLogWorker")
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([orgId])
+  @@map("users")
+}
+
+model Asset {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId         String         @map("org_id") @db.Uuid
+  assetCode     String         @map("asset_code")
+  name          String
+  assetType     AssetType      @map("asset_type")
+  condition     AssetCondition
+  description   String?
+  location      String?
+  managerUserId String?        @map("manager_user_id") @db.Uuid
+  customFields  Json           @default("{}") @map("custom_fields")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
+  manager       User?          @relation("AssetManager", fields: [managerUserId], references: [id])
+  organization  Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  serviceLogs   ServiceLog[]
+
+  @@unique([orgId, assetCode])
+  @@index([orgId])
+  @@index([managerUserId])
+  @@map("assets")
+}
+
+model ServiceLog {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId            String            @map("org_id") @db.Uuid
+  assetId          String            @map("asset_id") @db.Uuid
+  workerUserId     String            @map("worker_user_id") @db.Uuid
+  inspectionTitle  String            @map("inspection_title")
+  inspectionDetail String?           @map("inspection_detail")
+  inspectionResult InspectionResult? @map("inspection_result")
+  logType          ServiceLogType    @map("log_type")
+  occurredDate     DateTime          @default(now()) @map("occurred_date")
+  receivedDate     DateTime?         @map("received_date")
+  status           ServiceLogStatus
+  beforePhotos     String[]          @default([]) @map("before_photos")
+  afterPhotos      String[]          @default([]) @map("after_photos")
+  customFields     Json              @default("{}") @map("custom_fields")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
+  asset            Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  organization     Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  worker           User              @relation("ServiceLogWorker", fields: [workerUserId], references: [id])
+
+  @@index([orgId])
+  @@index([assetId])
+  @@index([workerUserId])
+  @@index([orgId, assetId])
+  @@map("service_logs")
+}
+
+model OrgCustomFieldDefinition {
+  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId        String                @map("org_id") @db.Uuid
+  entityType   CustomFieldEntityType @map("entity_type")
+  fieldKey     String                @map("field_key")
+  fieldLabel   String                @map("field_label")
+  fieldType    String                @map("field_type")
+  isRequired   Boolean               @default(false) @map("is_required")
+  sortOrder    Int                   @default(0) @map("sort_order")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @default(now()) @updatedAt @map("updated_at")
+  organization Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, entityType, fieldKey])
+  @@index([orgId, entityType])
+  @@map("org_custom_field_definitions")
+}
+
+enum UserRole {
+  super_admin
+  org_admin
+  manager
+  staff
+}
+
+enum AssetType {
+  air_conditioner
+  refrigerator
+  cctv
+  server
+  printer
+}
+
+enum AssetCondition {
+  active
+  inactive
+  repair
+  retired
+}
+
+enum InspectionResult {
+  normal
+  warning
+  issue
+  completed
+}
+
+enum ServiceLogType {
+  inspection
+  repair
+  maintenance
+  replacement
+}
+
+enum ServiceLogStatus {
+  received
+  in_progress
+  completed
+  closed
+}
+
+enum CustomFieldEntityType {
+  asset
+  service_log
+}
