@@ -1,8 +1,11 @@
+```typescript
 import { NextRequest, NextResponse } from "next/server";
 import { handleRouteError, jsonError } from "@/lib/api-errors";
 import { resolveOrgRequest } from "@/lib/api-org-context";
 import * as assetsService from "@/lib/services/assets.service";
 import { updateAssetSchema } from "@/lib/validations/assets";
+
+export const dynamic = 'force-dynamic';
 
 type RouteParams = { params: Promise<{ orgId: string; assetId: string }> };
 
@@ -54,3 +57,4 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     return handleRouteError(e);
   }
 }
+```
