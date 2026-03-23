@@ -3,6 +3,8 @@ import { handleRouteError } from "@/lib/api-errors";
 import { resolveOrgRequest } from "@/lib/api-org-context";
 import * as serviceLogsService from "@/lib/services/service-logs.service";
 
+export const dynamic = "force-dynamic";
+
 type RouteParams = { params: Promise<{ orgId: string; assetId: string }> };
 
 export async function GET(req: NextRequest, { params }: RouteParams) {
